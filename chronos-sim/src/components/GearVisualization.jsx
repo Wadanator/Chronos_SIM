@@ -1,76 +1,63 @@
-import { useEffect, useState } from 'react';
-import useMqttStore from '../store/useMqttStore';
+import useDeviceStore from '../store/deviceStore';
 
-const gearPath = (cx, cy, outerR, innerR, teeth) => {
-  const points = [];
-  const step = (Math.PI * 2) / teeth;
-  const hookSize = step * 0.34;
-
-  for (let i = 0; i < teeth; i++) {
-    const angle = -Math.PI / 2 + i * step;
-    points.push(`${(cx + innerR * Math.cos(angle - hookSize)).toFixed(1)},${(cy + innerR * Math.sin(angle - hookSize)).toFixed(1)}`);
-    points.push(`${(cx + outerR * Math.cos(angle - hookSize * 0.3)).toFixed(1)},${(cy + outerR * Math.sin(angle - hookSize * 0.3)).toFixed(1)}`);
-    points.push(`${(cx + outerR * Math.cos(angle + hookSize * 0.3)).toFixed(1)},${(cy + outerR * Math.sin(angle + hookSize * 0.3)).toFixed(1)}`);
-    points.push(`${(cx + innerR * Math.cos(angle + hookSize)).toFixed(1)},${(cy + innerR * Math.sin(angle + hookSize)).toFixed(1)}`);
+const gearPath = (cx, cy, ro, ri, n) => {
+  const pts = [];
+  const s = (Math.PI * 2) / n;
+  const h = s * 0.34;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * s;
+    pts.push(`${(cx + ri * Math.cos(a - h)).toFixed(1)},${(cy + ri * Math.sin(a - h)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a - h*.3)).toFixed(1)},${(cy + ro * Math.sin(a - h*.3)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a + h*.3)).toFixed(1)},${(cy + ro * Math.sin(a + h*.3)).toFixed(1)}`);
+    pts.push(`${(cx + ri * Math.cos(a + h)).toFixed(1)},${(cy + ri * Math.sin(a + h)).toFixed(1)}`);
   }
-  return 'M' + points.join('L') + 'Z';
+  return 'M' + pts.join('L') + 'Z';
 };
 
-const Gear = ({ cx, cy, outerR, innerR, hubR, teeth, fill, stroke, direction, duration, motorSpeed }) => {
-  const spokeCount = Math.min(6, teeth > 18 ? 6 : 5);
-
-  // Calculate animation duration based on motor speed
-  const adjustedDuration = motorSpeed > 0 ? (duration * 100) / Math.max(motorSpeed, 1) : duration * 100;
-  const animationClass = direction === 'cw' ? 'animate-spin' : 'animate-spin-reverse';
-
+const Gear = ({ cx, cy, ro, ri, hub, teeth, fill, stroke, dir, baseDur, speed }) => {
+  const running = speed > 0.5;
+  const dur = running ? (baseDur * 100) / Math.max(speed, 1) : 0;
+  const spokes = Math.min(6, teeth > 18 ? 6 : 5);
   return (
-    <g
-      className={motorSpeed > 0 ? animationClass : ''}
-      style={{
-        transformOrigin: `${cx}px ${cy}px`,
-        animationDuration: `${adjustedDuration}s`,
-        animationTimingFunction: 'linear',
-      }}
-    >
-      {/* Gear body */}
-      <path d={gearPath(cx, cy, outerR, innerR, teeth)} fill={fill} stroke={stroke} strokeWidth="0.5" />
-
-      {/* Inner ring */}
-      <circle cx={cx} cy={cy} r={innerR - 5} fill="none" stroke={stroke} strokeWidth="0.4" />
-
-      {/* Spokes */}
-      {Array.from({ length: spokeCount }).map((_, i) => {
-        const angle = (i * Math.PI * 2) / spokeCount;
-        const x1 = cx + (hubR + 1) * Math.cos(angle);
-        const y1 = cy + (hubR + 1) * Math.sin(angle);
-        const x2 = cx + (innerR - 5) * Math.cos(angle);
-        const y2 = cy + (innerR - 5) * Math.sin(angle);
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={stroke} strokeWidth="1.8" />;
+    <g style={{
+      transformOrigin: `${cx}px ${cy}px`,
+      animation: running ? `${dir === 'cw' ? 'gcw' : 'gccw'} ${dur.toFixed(2)}s linear infinite` : 'none',
+    }}>
+      <path d={gearPath(cx, cy, ro, ri, teeth)} fill={fill} stroke={stroke} strokeWidth="0.6" />
+      <circle cx={cx} cy={cy} r={ri - 6} fill="none" stroke={stroke} strokeWidth="0.4" />
+      {Array.from({ length: spokes }).map((_, i) => {
+        const a = (i * Math.PI * 2) / spokes;
+        return <line key={i}
+          x1={(cx + (hub+2) * Math.cos(a)).toFixed(1)} y1={(cy + (hub+2) * Math.sin(a)).toFixed(1)}
+          x2={(cx + (ri-7) * Math.cos(a)).toFixed(1)} y2={(cy + (ri-7) * Math.sin(a)).toFixed(1)}
+          stroke={stroke} strokeWidth="2" />;
       })}
-
-      {/* Hub */}
-      <circle cx={cx} cy={cy} r={hubR} fill="#1a1814" stroke={stroke} strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={hub+2} fill="#0e0d09" stroke={stroke} strokeWidth="0.8" />
+      <circle cx={cx} cy={cy} r={hub}   fill="#161410" stroke={stroke} strokeWidth="0.4" />
     </g>
   );
 };
 
-const GearVisualization = () => {
-  const motors = useMqttStore((state) => state.motors);
-  const motorSpeed = Math.max(motors.m1, motors.m2);
+// Layout mirrors real CHRONOS prop: large central gear, smaller ones meshing around
+const GEARS = [
+  { cx:118, cy:108, ro:70, ri:57, hub:12, teeth:28, fill:'#2a2416', stroke:'#6a5828', dir:'cw',  baseDur:14 },
+  { cx:208, cy: 50, ro:40, ri:32, hub: 8, teeth:16, fill:'#2a2416', stroke:'#6a5828', dir:'ccw', baseDur: 8 },
+  { cx:205, cy:166, ro:30, ri:23, hub: 6, teeth:12, fill:'#342a18', stroke:'#7a6830', dir:'cw',  baseDur: 6 },
+  { cx: 44, cy:178, ro:34, ri:26, hub: 7, teeth:14, fill:'#342a18', stroke:'#7a6830', dir:'ccw', baseDur: 6 },
+  { cx: 82, cy:196, ro:16, ri:12, hub: 4, teeth: 8, fill:'#3e3020', stroke:'#8a7838', dir:'cw',  baseDur: 3 },
+];
 
-  const gears = [
-    { cx: 115, cy: 105, outerR: 70, innerR: 57, hubR: 11, teeth: 27, fill: '#4a3e22', stroke: '#8a7030', direction: 'cw', duration: 12 },
-    { cx: 205, cy: 50, outerR: 40, innerR: 31, hubR: 8, teeth: 16, fill: '#4a3e22', stroke: '#8a7030', direction: 'ccw', duration: 7.1 },
-    { cx: 47, cy: 175, outerR: 32, innerR: 25, hubR: 6, teeth: 12, fill: '#544530', stroke: '#9a8540', direction: 'ccw', duration: 5.7 },
-    { cx: 195, cy: 175, outerR: 26, innerR: 20, hubR: 5, teeth: 11, fill: '#544530', stroke: '#9a8540', direction: 'cw', duration: 3.4 },
-    { cx: 83, cy: 190, outerR: 16, innerR: 12, hubR: 4, teeth: 8, fill: '#625a38', stroke: '#b09048', direction: 'ccw', duration: 2.2 },
-  ];
+const GearVisualization = () => {
+  const motors = useDeviceStore((s) => s.motors);
+  const speed  = Math.max(motors.m1, motors.m2);
 
   return (
-    <svg width="100%" viewBox="0 0 230 215" className="block">
-      {gears.map((gear, index) => (
-        <Gear key={index} {...gear} motorSpeed={motorSpeed} />
-      ))}
+    <svg width="100%" viewBox="0 0 240 220" className="block">
+      <style>{`
+        @keyframes gcw  { to { transform: rotate( 360deg); } }
+        @keyframes gccw { to { transform: rotate(-360deg); } }
+      `}</style>
+      {GEARS.map((g, i) => <Gear key={i} {...g} speed={speed} />)}
     </svg>
   );
 };

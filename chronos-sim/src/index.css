@@ -1,31 +1,7 @@
 @import "tailwindcss";
 
-@theme {
-  /* Tvoje pôvodné farby z HTML konceptu */
-  --color-panel-bg: #1a1814;
-  --color-panel-border: #665030;
-  --color-rivet: #7a5e24;
-  --color-rivet-border: #6a5430;
-  --color-copper: #c07835;
-  --color-led-red: #cc2222;
-  --color-led-amber: #e8820a;
-  --color-led-off: #5a2e08;
-  --color-text-cream: #d4b87a;
-  --color-text-dim: #6a5430;
-  --color-text-steel: #888070;
-
-  /* Custom animations */
-  --animate-spin-reverse: spin-reverse 1s linear infinite;
-  --animate-spin-slow: spin 7s linear infinite;
-
-  @keyframes spin-reverse {
-    to {
-      transform: rotate(-360deg);
-    }
-  }
-}
-
 body {
   margin: 0;
-  background-color: #0f0e0c; /* Okolie panelu */
+  background-color: #050403;
+  min-height: 100vh;
 }

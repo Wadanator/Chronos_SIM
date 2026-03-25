@@ -1,123 +1,160 @@
 import { useEffect, useState } from 'react';
+import useDeviceStore from '../store/deviceStore';
+
+const gearPath = (cx, cy, ro, ri, n) => {
+  const pts = [];
+  const s = (Math.PI * 2) / n;
+  const h = s * 0.34;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * s;
+    pts.push(`${(cx + ri * Math.cos(a - h)).toFixed(1)},${(cy + ri * Math.sin(a - h)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a - h * .3)).toFixed(1)},${(cy + ro * Math.sin(a - h * .3)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a + h * .3)).toFixed(1)},${(cy + ro * Math.sin(a + h * .3)).toFixed(1)}`);
+    pts.push(`${(cx + ri * Math.cos(a + h)).toFixed(1)},${(cy + ri * Math.sin(a + h)).toFixed(1)}`);
+  }
+  return 'M' + pts.join('L') + 'Z';
+};
+
+const ROMANS = ['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
 
 const AnalogClock = () => {
   const [time, setTime] = useState(new Date());
+  const light2   = useDeviceStore((s) => s.outputs.light2);
+  const motors   = useDeviceStore((s) => s.motors);
+  const motorSpd = Math.max(motors.m1, motors.m2);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const seconds = time.getSeconds();
-  const minutes = time.getMinutes() + seconds / 60;
-  const hours = (time.getHours() % 12) + minutes / 60;
+  const sec  = time.getSeconds();
+  const min  = time.getMinutes() + sec / 60;
+  const hour = (time.getHours() % 12) + min / 60;
+  const hA   = (hour / 12) * 360 - 90;
+  const mA   = (min  / 60) * 360 - 90;
 
-  const hourAngle = (hours / 12) * 360 - 90;
-  const minuteAngle = (minutes / 60) * 360 - 90;
+  const cx = 200, cy = 108, hLen = 56, mLen = 72;
+  const toXY = (angle, len) => ({
+    x: cx + len * Math.cos((angle * Math.PI) / 180),
+    y: cy + len * Math.sin((angle * Math.PI) / 180),
+  });
+  const hp = toXY(hA, hLen);
+  const mp = toXY(mA, mLen);
 
-  const cx = 200;
-  const cy = 105;
-  const hourLength = 55;
-  const minuteLength = 68;
-
-  const hourX = cx + hourLength * Math.cos((hourAngle * Math.PI) / 180);
-  const hourY = cy + hourLength * Math.sin((hourAngle * Math.PI) / 180);
-  const minuteX = cx + minuteLength * Math.cos((minuteAngle * Math.PI) / 180);
-  const minuteY = cy + minuteLength * Math.sin((minuteAngle * Math.PI) / 180);
-
-  const romans = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
-
-  // Generate gear path
-  const gearPath = (cx, cy, outerR, innerR, teeth) => {
-    const points = [];
-    const step = (Math.PI * 2) / teeth;
-    const hookSize = step * 0.34;
-
-    for (let i = 0; i < teeth; i++) {
-      const angle = -Math.PI / 2 + i * step;
-      points.push(`${(cx + innerR * Math.cos(angle - hookSize)).toFixed(1)},${(cy + innerR * Math.sin(angle - hookSize)).toFixed(1)}`);
-      points.push(`${(cx + outerR * Math.cos(angle - hookSize * 0.3)).toFixed(1)},${(cy + outerR * Math.sin(angle - hookSize * 0.3)).toFixed(1)}`);
-      points.push(`${(cx + outerR * Math.cos(angle + hookSize * 0.3)).toFixed(1)},${(cy + outerR * Math.sin(angle + hookSize * 0.3)).toFixed(1)}`);
-      points.push(`${(cx + innerR * Math.cos(angle + hookSize)).toFixed(1)},${(cy + innerR * Math.sin(angle + hookSize)).toFixed(1)}`);
-    }
-    return 'M' + points.join('L') + 'Z';
-  };
+  // Gear speed: motor 100% → 18s, motor 10% → 180s
+  const gearDur = motorSpd > 0.5 ? (18 * 100) / Math.max(motorSpd, 1) : 0;
 
   return (
-    <svg width="100%" viewBox="0 0 400 210" className="block max-h-[190px]">
-      {/* Background housing */}
-      <rect x="60" y="4" width="280" height="202" rx="140" ry="105" fill="#0e0d0a" />
+    <svg width="100%" viewBox="0 0 400 216" className="block">
+      <defs>
+        {/* Clock face backlight glow when light2 is ON */}
+        <radialGradient id="clockGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor={light2 ? '#c8a050' : '#2a2010'} stopOpacity={light2 ? 0.25 : 0.05} />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <filter id="softGlow">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      {/* Panel bg */}
+      <rect x="1" y="1" width="398" height="214" rx="3" fill="#0e0d09" stroke="#2e2610" strokeWidth="1.5" />
+
+      {/* Clock backlight */}
+      <circle cx={cx} cy={cy} r="104" fill="url(#clockGlow)"
+        style={{ transition: 'all 0.8s ease' }} />
+
+      {/* Outer bezel with rivets */}
+      <circle cx={cx} cy={cy} r="103" fill="#0b0a07" stroke="#4a3c18" strokeWidth="3" />
+      {Array.from({ length: 24 }).map((_, i) => {
+        const a = (i / 24) * Math.PI * 2;
+        return <circle key={i}
+          cx={(cx + 102 * Math.cos(a)).toFixed(1)} cy={(cy + 102 * Math.sin(a)).toFixed(1)}
+          r="1.8" fill="#5a4020" stroke="#2a1808" strokeWidth="0.4" />;
+      })}
 
       {/* Clock face */}
-      <circle cx="200" cy="105" r="97" fill="#0c0b09" stroke="#665030" strokeWidth="2.5" />
-      <circle cx="200" cy="105" r="89" fill="none" stroke="#2e2410" strokeWidth="1" />
+      <circle cx={cx} cy={cy} r="97" fill="#0d0c08" stroke="#5a4520" strokeWidth="2" />
+      <circle cx={cx} cy={cy} r="91" fill="none"    stroke="#261e0e" strokeWidth="0.8" />
+      <circle cx={cx} cy={cy} r="78" fill="none"    stroke="#1e1808" strokeWidth="0.5" />
+
+      {/* Segment lines matching real prop */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const a1 = ( i      / 12) * Math.PI * 2 - Math.PI / 2;
+        const a2 = ((i+0.5) / 12) * Math.PI * 2 - Math.PI / 2;
+        return <line key={i}
+          x1={(cx + 79 * Math.cos(a1)).toFixed(1)} y1={(cy + 79 * Math.sin(a1)).toFixed(1)}
+          x2={(cx + 79 * Math.cos(a2)).toFixed(1)} y2={(cy + 79 * Math.sin(a2)).toFixed(1)}
+          stroke="#1a1608" strokeWidth="0.6" />;
+      })}
 
       {/* Roman numerals */}
-      {romans.map((numeral, i) => {
-        const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-        const radius = 74;
-        const x = 200 + radius * Math.cos(angle);
-        const y = 105 + radius * Math.sin(angle);
-        return (
-          <text
-            key={i}
-            x={x}
-            y={y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#7a6030"
-            fontSize="13"
-            fontFamily="serif"
-          >
-            {numeral}
-          </text>
-        );
+      {ROMANS.map((num, i) => {
+        const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+        return <text key={i}
+          x={(cx + 68 * Math.cos(a)).toFixed(1)} y={(cy + 68 * Math.sin(a)).toFixed(1)}
+          textAnchor="middle" dominantBaseline="middle"
+          fill={light2 ? '#9a7838' : '#5a3e18'}
+          fontSize="13" fontFamily="Georgia, serif" fontWeight="bold"
+          style={{ transition: 'fill 0.8s ease' }}>
+          {num}
+        </text>;
       })}
 
       {/* Tick marks */}
       {Array.from({ length: 60 }).map((_, i) => {
-        const angle = (i / 60) * Math.PI * 2 - Math.PI / 2;
-        const r1 = i % 5 === 0 ? 82 : 85;
-        const r2 = 88;
-        const x1 = 200 + r1 * Math.cos(angle);
-        const y1 = 105 + r1 * Math.sin(angle);
-        const x2 = 200 + r2 * Math.cos(angle);
-        const y2 = 105 + r2 * Math.sin(angle);
-        return (
-          <line
-            key={i}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            stroke={i % 5 === 0 ? '#7a6030' : '#3a2e18'}
-            strokeWidth={i % 5 === 0 ? '1.5' : '0.8'}
-          />
-        );
+        const a  = (i / 60) * Math.PI * 2 - Math.PI / 2;
+        const r1 = i % 5 === 0 ? 80 : 85;
+        return <line key={i}
+          x1={(cx + r1 * Math.cos(a)).toFixed(1)} y1={(cy + r1 * Math.sin(a)).toFixed(1)}
+          x2={(cx + 90 * Math.cos(a)).toFixed(1)} y2={(cy + 90 * Math.sin(a)).toFixed(1)}
+          stroke={i % 5 === 0 ? '#5a4020' : '#261e0e'}
+          strokeWidth={i % 5 === 0 ? '1.5' : '0.6'} />;
       })}
 
-      {/* Center decorative gear */}
-      <g className="animate-spin-slow" style={{ transformOrigin: '200px 105px' }}>
-        <path d={gearPath(200, 105, 36, 28, 16)} fill="#252218" stroke="#4a3c1a" strokeWidth="0.5" />
-        {[0, 1, 2, 3].map((i) => {
-          const angle = (i * Math.PI) / 2;
-          const x1 = 200 + 6 * Math.cos(angle);
-          const y1 = 105 + 6 * Math.sin(angle);
-          const x2 = 200 + 22 * Math.cos(angle);
-          const y2 = 105 + 22 * Math.sin(angle);
-          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#4a3c1a" strokeWidth="2" />;
-        })}
-      </g>
+      {/* Skeleton gear - spins with motor speed */}
+      {gearDur > 0 ? (
+        <g style={{
+          transformOrigin: `${cx}px ${cy}px`,
+          animation: `spin ${gearDur.toFixed(1)}s linear infinite`,
+        }}>
+          <path d={gearPath(cx, cy, 34, 26, 16)} fill="#191710" stroke="#3a2e14" strokeWidth="0.8" />
+          {[0,1,2,3].map((i) => {
+            const a = (i * Math.PI) / 2;
+            return <line key={i}
+              x1={(cx + 5 * Math.cos(a)).toFixed(1)} y1={(cy + 5 * Math.sin(a)).toFixed(1)}
+              x2={(cx + 21 * Math.cos(a)).toFixed(1)} y2={(cy + 21 * Math.sin(a)).toFixed(1)}
+              stroke="#3a2e14" strokeWidth="2.5" />;
+          })}
+        </g>
+      ) : (
+        <g>
+          <path d={gearPath(cx, cy, 34, 26, 16)} fill="#191710" stroke="#3a2e14" strokeWidth="0.8" />
+          {[0,1,2,3].map((i) => {
+            const a = (i * Math.PI) / 2;
+            return <line key={i}
+              x1={(cx + 5 * Math.cos(a)).toFixed(1)} y1={(cy + 5 * Math.sin(a)).toFixed(1)}
+              x2={(cx + 21 * Math.cos(a)).toFixed(1)} y2={(cy + 21 * Math.sin(a)).toFixed(1)}
+              stroke="#3a2e14" strokeWidth="2.5" />;
+          })}
+        </g>
+      )}
 
-      {/* Clock hands */}
-      <line x1={cx} y1={cy} x2={hourX} y2={hourY} stroke="#e0d8b8" strokeWidth="5" strokeLinecap="round" />
-      <line x1={cx} y1={cy} x2={minuteX} y2={minuteY} stroke="#c8bc98" strokeWidth="3" strokeLinecap="round" />
+      {/* Hour hand */}
+      <line x1={cx} y1={cy} x2={hp.x.toFixed(1)} y2={hp.y.toFixed(1)}
+        stroke={light2 ? '#e8e0c0' : '#8a8070'} strokeWidth="6" strokeLinecap="round"
+        style={{ transition: 'stroke 0.8s', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+      {/* Minute hand */}
+      <line x1={cx} y1={cy} x2={mp.x.toFixed(1)} y2={mp.y.toFixed(1)}
+        stroke={light2 ? '#c8c0a0' : '#706858'} strokeWidth="3.5" strokeLinecap="round"
+        style={{ transition: 'stroke 0.8s', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+      {/* Centre */}
+      <circle cx={cx} cy={cy} r="7"   fill="#141210" stroke="#6a5424" strokeWidth="1.5" />
+      <circle cx={cx} cy={cy} r="3.5" fill="#c8a050" />
 
-      {/* Center cap */}
-      <circle cx="200" cy="105" r="6" fill="#c8a050" stroke="#8a6830" strokeWidth="1" />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </svg>
   );
 };

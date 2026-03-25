@@ -1,58 +1,33 @@
 import { create } from 'zustand';
 
 const useDeviceStore = create((set) => ({
-  // MQTT Connection state
-  mqttStatus: 'offline', // 'offline', 'connecting', 'online'
-  brokerUrl: 'room1.local:1883',
+  mqttStatus: 'offline', // 'offline' | 'connecting' | 'online' | 'error'
+  brokerUrl: 'TechMuzeumRoom1.local',
 
-  // Outputs state (LEDs)
+  // Exact device names from RELAY config.cpp DEVICES[]
   outputs: {
-    smokePower: false,
-    lightFire: false,
-    light1: false,
-    light2: false,
-    light3: false,
-    light4: false,
-    light5: false,
-    smokeEffect: false,
+    smokePower:  false,  // power/smoke_ON  - warms up smoke machine
+    lightFire:   false,  // light/fire      - fire effect on boiler
+    light1:      false,  // light/1         - podsvietenie podstavy
+    smokeEffect: false,  // effect/smoke    - triggers smoke
+    light2:      false,  // light/2         - podsvietenie hodín
+    light3:      false,  // light/3         - Edisonka
+    light4:      false,  // light/4         - budíky/wheels light A
+    light5:      false,  // light/5         - budíky/wheels light B
   },
 
-  // Motors state
-  motors: {
-    m1: 0, // 0-100%
-    m2: 0, // 0-100%
-  },
+  // Motor speeds 0-100 from MOTORS firmware
+  motors: { m1: 0, m2: 0 },
 
-  // Gauges state
-  gauges: {
-    pressure: 0, // -45 to 45 degrees
-    steam: 0,
-    flow: 0,
-  },
-
-  // Actions
+  // Actions — called ONLY by MQTT handler
   setMqttStatus: (status) => set({ mqttStatus: status }),
-
-  setOutput: (outputName, value) =>
-    set((state) => ({
-      outputs: { ...state.outputs, [outputName]: value },
-    })),
-
-  setMotor: (motorName, value) =>
-    set((state) => ({
-      motors: { ...state.motors, [motorName]: Math.min(100, Math.max(0, value)) },
-    })),
-
-  setGauge: (gaugeName, value) =>
-    set((state) => ({
-      gauges: { ...state.gauges, [gaugeName]: value },
-    })),
-
-  // Update all motor values at once (for MQTT updates)
+  setOutput: (name, value) =>
+    set((s) => ({ outputs: { ...s.outputs, [name]: value } })),
   updateMotors: (m1, m2) =>
-    set({
-      motors: { m1: Math.min(100, Math.max(0, m1)), m2: Math.min(100, Math.max(0, m2)) },
-    }),
+    set({ motors: {
+      m1: Math.min(100, Math.max(0, m1)),
+      m2: Math.min(100, Math.max(0, m2)),
+    }}),
 }));
 
 export default useDeviceStore;

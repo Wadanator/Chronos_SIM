@@ -1,54 +1,65 @@
-import useMqttStore from '../store/useMqttStore';
+import useDeviceStore from '../store/deviceStore';
 
-const Gauge = ({ label, value }) => {
-  // Value is expected to be between -45 and 45 degrees
-  const angle = Math.min(45, Math.max(-45, value));
+const gearPath = (cx, cy, ro, ri, n) => {
+  const pts = [];
+  const s = (Math.PI * 2) / n;
+  const h = s * 0.34;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * s;
+    pts.push(`${(cx + ri * Math.cos(a - h)).toFixed(1)},${(cy + ri * Math.sin(a - h)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a - h*.3)).toFixed(1)},${(cy + ro * Math.sin(a - h*.3)).toFixed(1)}`);
+    pts.push(`${(cx + ro * Math.cos(a + h*.3)).toFixed(1)},${(cy + ro * Math.sin(a + h*.3)).toFixed(1)}`);
+    pts.push(`${(cx + ri * Math.cos(a + h)).toFixed(1)},${(cy + ri * Math.sin(a + h)).toFixed(1)}`);
+  }
+  return 'M' + pts.join('L') + 'Z';
+};
+
+const Gear = ({ cx, cy, ro, ri, hub, teeth, fill, stroke, dir, baseDur, speed }) => {
+  const running = speed > 0.5;
+  const dur = running ? (baseDur * 100) / Math.max(speed, 1) : 0;
+  const spokes = Math.min(6, teeth > 18 ? 6 : 5);
+  return (
+    <g style={{
+      transformOrigin: `${cx}px ${cy}px`,
+      animation: running ? `${dir === 'cw' ? 'gcw' : 'gccw'} ${dur.toFixed(2)}s linear infinite` : 'none',
+    }}>
+      <path d={gearPath(cx, cy, ro, ri, teeth)} fill={fill} stroke={stroke} strokeWidth="0.6" />
+      <circle cx={cx} cy={cy} r={ri - 6} fill="none" stroke={stroke} strokeWidth="0.4" />
+      {Array.from({ length: spokes }).map((_, i) => {
+        const a = (i * Math.PI * 2) / spokes;
+        return <line key={i}
+          x1={(cx + (hub+2) * Math.cos(a)).toFixed(1)} y1={(cy + (hub+2) * Math.sin(a)).toFixed(1)}
+          x2={(cx + (ri-7) * Math.cos(a)).toFixed(1)} y2={(cy + (ri-7) * Math.sin(a)).toFixed(1)}
+          stroke={stroke} strokeWidth="2" />;
+      })}
+      <circle cx={cx} cy={cy} r={hub+2} fill="#0e0d09" stroke={stroke} strokeWidth="0.8" />
+      <circle cx={cx} cy={cy} r={hub}   fill="#161410" stroke={stroke} strokeWidth="0.4" />
+    </g>
+  );
+};
+
+// Layout mirrors real CHRONOS prop: large central gear, smaller ones meshing around
+const GEARS = [
+  { cx:118, cy:108, ro:70, ri:57, hub:12, teeth:28, fill:'#2a2416', stroke:'#6a5828', dir:'cw',  baseDur:14 },
+  { cx:208, cy: 50, ro:40, ri:32, hub: 8, teeth:16, fill:'#2a2416', stroke:'#6a5828', dir:'ccw', baseDur: 8 },
+  { cx:205, cy:166, ro:30, ri:23, hub: 6, teeth:12, fill:'#342a18', stroke:'#7a6830', dir:'cw',  baseDur: 6 },
+  { cx: 44, cy:178, ro:34, ri:26, hub: 7, teeth:14, fill:'#342a18', stroke:'#7a6830', dir:'ccw', baseDur: 6 },
+  { cx: 82, cy:196, ro:16, ri:12, hub: 4, teeth: 8, fill:'#3e3020', stroke:'#8a7838', dir:'cw',  baseDur: 3 },
+];
+
+const GearVisualization = () => {
+  const motors = useDeviceStore((s) => s.motors);
+  const speed  = Math.max(motors.m1, motors.m2);
 
   return (
-    <svg width="52" height="52" viewBox="0 0 52 52">
-      {/* Outer circle */}
-      <circle cx="26" cy="26" r="23" fill="#0c0b09" stroke="#7a5e24" strokeWidth="1.5" />
-
-      {/* Arc gauge background */}
-      <path d="M 8 38 A 20 20 0 1 1 44 38" fill="none" stroke="#2a2218" strokeWidth="2" />
-
-      {/* Needle */}
-      <line
-        x1="26"
-        y1="26"
-        x2="26"
-        y2="10"
-        stroke="#c07835"
-        strokeWidth="2"
-        strokeLinecap="round"
-        style={{
-          transformOrigin: '26px 26px',
-          transform: `rotate(${angle}deg)`,
-          transition: 'transform 0.4s ease-out',
-        }}
-      />
-
-      {/* Center cap */}
-      <circle cx="26" cy="26" r="3" fill="#b8903c" />
-
-      {/* Label */}
-      <text x="26" y="47" textAnchor="middle" fill="#6a5430" fontSize="6" fontFamily="Courier New">
-        {label}
-      </text>
+    <svg width="100%" viewBox="0 0 240 220" className="block">
+      <style>{`
+        @keyframes gcw  { to { transform: rotate( 360deg); } }
+        @keyframes gccw { to { transform: rotate(-360deg); } }
+      `}</style>
+      {GEARS.map((g, i) => <Gear key={i} {...g} speed={speed} />)}
     </svg>
   );
 };
 
-const BottomGauges = () => {
-  const gauges = useMqttStore((state) => state.gauges);
-
-  return (
-    <div className="flex gap-2">
-      <Gauge label="PRESS" value={gauges.pressure} />
-      <Gauge label="STEAM" value={gauges.steam} />
-      <Gauge label="FLOW" value={gauges.flow} />
-    </div>
-  );
-};
-
-export default BottomGauges;
+export default GearVisualization;
