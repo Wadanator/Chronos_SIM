@@ -1,4 +1,4 @@
-import useDeviceStore from '../store/deviceStore';
+import useDeviceStore from '../../store/deviceStore';
 
 const MotorBar = ({ label, value }) => {
   const pct = Math.round(value);

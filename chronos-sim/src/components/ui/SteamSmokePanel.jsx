@@ -1,4 +1,4 @@
-import useDeviceStore from '../store/deviceStore';
+import useDeviceStore from '../../store/deviceStore';
 
 // Animated smoke particles
 const SmokeParticle = ({ x, delay, size }) => (
