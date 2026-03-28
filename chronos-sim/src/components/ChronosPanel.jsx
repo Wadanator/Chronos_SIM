@@ -3,406 +3,318 @@ import AnalogClock from './AnalogClock';
 import GearVisualization from './GearVisualization';
 import MqttStatusBadge from './MqttStatusBadge';
 
-// Rivet positions
-const RIVETS = [
-  { top: '12px', left: '12px' }, { top: '12px', right: '12px' },
-  { bottom: '12px', left: '12px' }, { bottom: '12px', right: '12px' },
-  { top: '12px', left: '25%' }, { top: '12px', left: '50%' }, { top: '12px', left: '75%' },
-  { bottom: '12px', left: '25%' }, { bottom: '12px', left: '50%' }, { bottom: '12px', left: '75%' },
-  { top: '25%', left: '12px' }, { top: '50%', left: '12px' }, { top: '75%', left: '12px' },
-  { top: '25%', right: '12px' }, { top: '50%', right: '12px' }, { top: '75%', right: '12px' },
-];
-
+// ── Rivet ──────────────────────────────────────────────────────────────────
 const Rivet = ({ style }) => (
-  <div className="absolute w-3 h-3 rounded-full pointer-events-none" style={{
+  <div style={{
+    position: 'absolute', width: 10, height: 10, borderRadius: '50%',
+    background: 'radial-gradient(circle at 35% 35%, #e0d4bc, #a89878)',
+    border: '1px solid #b8a880',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 3px rgba(40,24,8,0.2)',
+    pointerEvents: 'none',
     ...style,
-    background: 'radial-gradient(circle at 30% 30%, #5a4820, #2a1c08)',
-    border: '1px solid #1a1008',
-    boxShadow: 'inset 0.5px 0.5px 1px rgba(255,255,255,0.15)',
-  }}>
-    <div className="absolute inset-[4px] rounded-full" style={{
-      background: 'radial-gradient(circle at 30% 30%, #3a2e14, #1a1208)',
-    }} />
-  </div>
+  }}/>
 );
 
-// Steam pipe
-const SteamPipe = () => {
-  const lightFire = useDeviceStore((s) => s.outputs.lightFire);
-  const light4 = useDeviceStore((s) => s.outputs.light4); // Ventily controlled by light4
+const RIVETS = [
+  { top:12, left:12 }, { top:12, right:12 },
+  { bottom:12, left:12 }, { bottom:12, right:12 },
+  { top:12, left:'25%' }, { top:12, left:'50%' }, { top:12, left:'75%' },
+  { bottom:12, left:'25%' }, { bottom:12, left:'50%' }, { bottom:12, left:'75%' },
+  { top:'25%', left:12 }, { top:'50%', left:12 }, { top:'75%', left:12 },
+  { top:'25%', right:12 }, { top:'50%', right:12 }, { top:'75%', right:12 },
+];
 
+// ── LED indicator dot ──────────────────────────────────────────────────────
+const Led = ({ active, color = 'amber', label }) => {
+  const colors = {
+    amber: { on:'radial-gradient(circle at 35% 35%, #f8e080, #d09020)', shadow:'rgba(208,144,32,0.7)' },
+    red:   { on:'radial-gradient(circle at 35% 35%, #ff9090, #d03020)', shadow:'rgba(208,48,32,0.7)'  },
+    green: { on:'radial-gradient(circle at 35% 35%, #90e890, #30a040)', shadow:'rgba(48,160,64,0.7)'  },
+  };
+  const c = colors[color] || colors.amber;
   return (
-    <div className="absolute" style={{ left: '30px', top: '60px', width: '30px', height: '580px', zIndex: 10 }}>
-      {/* Main vertical pipe - more visible */}
-      <div className="absolute" style={{
-        left: '10px',
-        width: '12px',
-        height: '100%',
-        background: 'linear-gradient(90deg, #6a5430 0%, #4a3e28 30%, #2a1e10 70%, #1a1208 100%)',
-        boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.7), inset 3px 0 3px rgba(120,90,60,0.2), 0 2px 4px rgba(0,0,0,0.6)',
-        border: '1px solid #1a1008',
-      }} />
-
-      {/* Pipe segments/joints */}
-      {[15, 35, 55, 75].map((pct, i) => (
-        <div key={`joint-${i}`} className="absolute" style={{
-          left: '6px',
-          top: `${pct}%`,
-          width: '20px',
-          height: '14px',
-          background: 'linear-gradient(180deg, #7a6040 0%, #5a4830 40%, #3a2e1a 100%)',
-          border: '1px solid #2a1e10',
-          borderRadius: '2px',
-          boxShadow: 'inset 0 2px 3px rgba(255,200,100,0.1), 0 2px 4px rgba(0,0,0,0.5)',
-        }} />
-      ))}
-
-      {/* Red valve wheels */}
-      {[100, 320].map((top, i) => (
-        <svg key={`valve-${i}`} className="absolute" style={{ left: '-10px', top: `${top}px` }}
-          width="50" height="50" viewBox="0 0 50 50">
-          <circle cx="25" cy="25" r="20" fill="none"
-            stroke={light4 ? '#dd2020' : '#8a1010'} strokeWidth="3"
-            style={{
-              filter: light4 ? 'drop-shadow(0 0 8px #dd2020)' : 'none',
-              transition: 'all 0.3s'
-            }} />
-          {[0, 60, 120, 180, 240, 300].map((angle) => {
-            const rad = (angle * Math.PI) / 180;
-            return (
-              <line key={angle}
-                x1="25" y1="25"
-                x2={25 + 20 * Math.cos(rad)} y2={25 + 20 * Math.sin(rad)}
-                stroke={light4 ? '#dd2020' : '#8a1010'} strokeWidth="3" strokeLinecap="round" />
-            );
-          })}
-          <circle cx="25" cy="25" r="6" fill="#551010" />
-        </svg>
-      ))}
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+      <div style={{
+        width:10, height:10, borderRadius:'50%',
+        background: active ? c.on : '#c8c0b0',
+        border: '1.5px solid #a89868',
+        boxShadow: active ? `0 0 8px ${c.shadow}, 0 0 16px ${c.shadow.replace('0.7','0.3')}` : 'inset 0 1px 2px rgba(0,0,0,0.2)',
+        transition: 'all 0.3s',
+      }}/>
+      {label && <span style={{
+        fontFamily:"'Share Tech Mono',monospace", fontSize:7,
+        color:'#8a7860', letterSpacing:1, textTransform:'uppercase',
+      }}>{label}</span>}
     </div>
   );
 };
 
-// Analog gauge
-const AnalogGauge = ({ value, radius = 24, lit = false }) => {
-  const needleAngle = -135 + (value * 270);
-  const size = radius * 2;
+// ── Section header line ────────────────────────────────────────────────────
+const SectionLabel = ({ children }) => (
+  <div style={{
+    fontFamily:"'Share Tech Mono',monospace",
+    fontSize: 8, letterSpacing: 3,
+    color: '#9a8870', textTransform:'uppercase',
+    marginBottom: 6,
+  }}>
+    {children}
+  </div>
+);
 
+// ── Edison bulb (light3) ───────────────────────────────────────────────────
+const EdisonBulb = ({ on }) => (
+  <svg width="36" height="52" viewBox="0 0 36 52">
+    <defs>
+      <radialGradient id="edisonGrad" cx="38%" cy="35%" r="65%">
+        <stop offset="0%"  stopColor={on ? '#fff8d0' : '#ccc4b0'}/>
+        <stop offset="60%" stopColor={on ? '#f0a820' : '#b0a888'}/>
+        <stop offset="100%"stopColor={on ? '#c07010' : '#908878'}/>
+      </radialGradient>
+    </defs>
+    {/* Wire */}
+    <line x1="18" y1="0" x2="18" y2="10" stroke="#b8a880" strokeWidth="1.2"/>
+    {/* Socket */}
+    <rect x="12" y="9" width="12" height="7" rx="1.5"
+      fill="#c8b888" stroke="#a89060" strokeWidth="0.8"/>
+    {[0,1,2].map(i=><line key={i} x1="12" y1={11+i*2} x2="24" y2={11+i*2}
+      stroke="#a09060" strokeWidth="0.4"/>)}
+    {/* Glass */}
+    <ellipse cx="18" cy="30" rx="13" ry="15"
+      fill="url(#edisonGrad)"
+      stroke={on ? '#d0a030' : '#b0a070'} strokeWidth="1"
+      style={{ transition:'all 0.6s', filter: on?'drop-shadow(0 0 8px rgba(220,160,20,0.6))':'none' }}/>
+    {/* Filament */}
+    {on && <path d="M 13 30 Q 15 25 18 30 Q 21 35 23 30" fill="none"
+      stroke="#fff8c0" strokeWidth="1" opacity="0.8"/>}
+    {/* Base */}
+    <rect x="15" y="44" width="6" height="4" rx="1"
+      fill="#c0b080" stroke="#a09060" strokeWidth="0.6"/>
+    {/* Label */}
+    <text x="18" y="52" textAnchor="middle"
+      fill={on ? '#8a6020' : '#9a8868'} fontSize="5"
+      fontFamily="'Share Tech Mono',monospace" letterSpacing="1"
+      style={{transition:'fill 0.6s'}}>EDIS.</text>
+  </svg>
+);
+
+// ── Pipe segment ───────────────────────────────────────────────────────────
+const PipeColumn = ({ light1 }) => (
+  <svg width="28" height="560" viewBox="0 0 28 560"
+    style={{ position:'absolute', left:16, top:60, pointerEvents:'none' }}>
+    {/* Main pipe */}
+    <rect x="10" y="0" width="8" height="560" rx="1"
+      fill={light1 ? '#c8b888' : '#b8a878'} style={{transition:'fill 0.8s'}}/>
+    <rect x="11" y="0" width="3" height="560"
+      fill="rgba(255,255,255,0.15)"/>
+    <rect x="15" y="0" width="2" height="560"
+      fill="rgba(0,0,0,0.1)"/>
+    {/* Joints */}
+    {[80,180,290,400,490].map((y,i) => (
+      <rect key={i} x="6" y={y} width="16" height="10" rx="2"
+        fill={light1 ? '#d0c090' : '#c0b080'} stroke="#a89060" strokeWidth="0.5"
+        style={{transition:'fill 0.8s'}}/>
+    ))}
+    {/* Valve wheels */}
+    {[140, 360].map((cy,i) => (
+      <g key={i}>
+        <circle cx="14" cy={cy} r="14" fill="none"
+          stroke={light1 ? '#c07820' : '#b09060'} strokeWidth="2.5"
+          style={{transition:'stroke 0.6s'}}/>
+        {[0,60,120,180,240,300].map(a => {
+          const r = (a*Math.PI)/180;
+          return <line key={a}
+            x1="14" y1={cy}
+            x2={(14+14*Math.cos(r)).toFixed(1)} y2={(cy+14*Math.sin(r)).toFixed(1)}
+            stroke={light1 ? '#c07820' : '#b09060'} strokeWidth="2.5" strokeLinecap="round"
+            style={{transition:'stroke 0.6s'}}/>;
+        })}
+        <circle cx="14" cy={cy} r="4" fill={light1?'#d09030':'#b09060'}/>
+      </g>
+    ))}
+  </svg>
+);
+
+// ── Circuit underlight (light1) ────────────────────────────────────────────
+const CircuitOverlay = ({ active }) => {
+  if (!active) return null;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* Outer ring */}
-      <circle cx={radius} cy={radius} r={radius - 1.5} fill="#0a0908"
-        stroke="#7a6030" strokeWidth="1.5" />
-
-      {/* Inner dark circle */}
-      <circle cx={radius} cy={radius} r={radius - 3} fill="#080706" />
-
-      {/* Arc path for scale */}
-      <path
-        d={`M ${radius - radius * 0.55} ${radius + radius * 0.5} A ${radius * 0.75} ${radius * 0.75} 0 1 1 ${radius + radius * 0.55} ${radius + radius * 0.5}`}
-        fill="none" stroke="#2e2518" strokeWidth="1.5" />
-
-      {/* Tick marks */}
-      {Array.from({ length: 11 }, (_, i) => {
-        const angle = -135 + (i * 27);
-        const rad = (angle * Math.PI) / 180;
-        const r1 = radius - 4;
-        const r2 = radius - 8;
-        return (
-          <line key={i}
-            x1={radius + r1 * Math.cos(rad)} y1={radius + r1 * Math.sin(rad)}
-            x2={radius + r2 * Math.cos(rad)} y2={radius + r2 * Math.sin(rad)}
-            stroke={lit ? '#e89040' : '#3a2e18'} strokeWidth="1" />
-        );
-      })}
-
-      {/* Needle */}
-      <line
-        x1={radius} y1={radius}
-        x2={radius + (radius - 7) * Math.cos((needleAngle * Math.PI) / 180)}
-        y2={radius + (radius - 7) * Math.sin((needleAngle * Math.PI) / 180)}
-        stroke={lit ? '#ffcc50' : '#8a6030'} strokeWidth="2" strokeLinecap="round"
-        style={{
-          filter: lit ? 'drop-shadow(0 0 4px #ffaa30)' : 'none',
-        }} />
-
-      {/* Center hub */}
-      <circle cx={radius} cy={radius} r="3" fill="#c09040" />
+    <svg style={{
+      position:'absolute', inset:0, width:'100%', height:'100%',
+      pointerEvents:'none', opacity:0.18, zIndex:1,
+    }}>
+      <defs>
+        <pattern id="cp" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="15" x2="60" y2="15" stroke="#c8a040" strokeWidth="1"/>
+          <line x1="0" y1="45" x2="60" y2="45" stroke="#c8a040" strokeWidth="1"/>
+          <line x1="15" y1="0" x2="15" y2="60" stroke="#c8a040" strokeWidth="1"/>
+          <line x1="45" y1="0" x2="45" y2="60" stroke="#c8a040" strokeWidth="1"/>
+          <circle cx="15" cy="15" r="2.5" fill="#d8b050"/>
+          <circle cx="45" cy="15" r="2.5" fill="#d8b050"/>
+          <circle cx="15" cy="45" r="2.5" fill="#d8b050"/>
+          <circle cx="45" cy="45" r="2.5" fill="#d8b050"/>
+          <line x1="8" y1="30" x2="22" y2="30" stroke="#b89040" strokeWidth="0.7"/>
+          <line x1="38" y1="30" x2="52" y2="30" stroke="#b89040" strokeWidth="0.7"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#cp)"/>
     </svg>
   );
 };
 
-// Fire indicator
-const FireIndicator = () => {
-  const lightFire = useDeviceStore((s) => s.outputs.lightFire);
-
-  return (
-    <div className="absolute" style={{
-      right: '20px',
-      top: '130px',
-      width: '50px',
-      height: '90px',
-      background: '#0d0b09',
-      border: '2px solid #4a3820',
-      borderRadius: '4px',
-      padding: '8px',
-      boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)',
-    }}>
-      <svg width="34" height="74" viewBox="0 0 34 74">
-        <defs>
-          <radialGradient id="fireFill">
-            <stop offset="0%" stopColor="#ff7720" />
-            <stop offset="50%" stopColor="#ff4010" />
-            <stop offset="100%" stopColor="#8a1000" />
-          </radialGradient>
-        </defs>
-
-        {lightFire ? (
-          <g style={{ animation: 'fireFlicker 0.12s ease-in-out infinite alternate' }}>
-            {[-7, 0, 7].map((offset, i) => (
-              <path key={i}
-                d={`M ${17 + offset} 64 C ${12 + offset} 52 ${10 + offset} 36 ${16 + offset} 22 C ${17 + offset} 18 ${17 + offset} 16 ${17 + offset} 16 C ${17 + offset} 16 ${18 + offset} 18 ${19 + offset} 22 C ${25 + offset} 36 ${23 + offset} 52 ${17 + offset} 64 Z`}
-                fill="url(#fireFill)" opacity={i === 1 ? 0.95 : 0.7}
-                style={{ filter: 'drop-shadow(0 0 4px #ff4010)' }} />
-            ))}
-            <ellipse cx="17" cy="58" rx="14" ry="6" fill="#ff4010" opacity="0.4" />
-          </g>
-        ) : (
-          <path
-            d="M 17 64 C 12 52 10 36 16 22 C 17 18 17 16 17 16 C 17 16 18 18 19 22 C 25 36 23 52 17 64 Z"
-            fill="#1a1208" stroke="#2a1e10" strokeWidth="1" />
-        )}
-      </svg>
-
-      <style>{`
-        @keyframes fireFlicker {
-          0% { transform: scaleY(1) translateY(0); }
-          100% { transform: scaleY(1.05) translateY(-1px); }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// Budík lights
-const BudikLight = ({ active, style }) => (
-  <div className="absolute" style={style}>
-    <div style={{
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      border: '1px solid #3a2e18',
-      background: active ? 'radial-gradient(circle, #ffcc60, #ff8020)' : '#0a0806',
-      boxShadow: active ? '0 0 20px #ff8020, 0 0 10px #ffaa40, inset 0 0 6px rgba(255,200,80,0.8)' : 'inset 0 0 3px rgba(0,0,0,0.9)',
-      transition: 'all 0.3s',
-    }} />
-  </div>
-);
-
-// Main panel
+// ── Main ChronosPanel ──────────────────────────────────────────────────────
 const ChronosPanel = () => {
-  const light1 = useDeviceStore((s) => s.outputs.light1);
-  const light2 = useDeviceStore((s) => s.outputs.light2);
-  const light3 = useDeviceStore((s) => s.outputs.light3);
-  const light4 = useDeviceStore((s) => s.outputs.light4);
-  const light5 = useDeviceStore((s) => s.outputs.light5);
+  const { light1, light2, light3, light4, light5, lightFire } = useDeviceStore((s) => s.outputs);
   const motors = useDeviceStore((s) => s.motors);
 
+  // Panel background shifts subtly when light1 (underlight) is on
+  const panelBg = light1
+    ? 'linear-gradient(160deg, #ede6d4 0%, #e4dbc8 50%, #ddd4c0 100%)'
+    : 'linear-gradient(160deg, #e4ddd2 0%, #dcd4c8 50%, #d4ccc0 100%)';
+
   return (
-    <div className="relative overflow-hidden font-mono select-none" style={{
-      background: '#0a0906',
-      border: '4px solid #3a2e18',
-      borderRadius: '6px',
-      width: '380px',
-      height: '720px',
-      padding: '8px',
-      boxShadow: '0 0 50px rgba(0,0,0,0.9), inset 0 0 80px rgba(0,0,0,0.7)',
-      transition: 'all 1s ease',
+    <div style={{
+      background: panelBg,
+      border: '2.5px solid #b8a88c',
+      borderRadius: 10,
+      width: 440,
+      minHeight: 680,
+      position: 'relative',
+      padding: '28px 24px 24px',
+      boxShadow: [
+        '0 12px 48px rgba(40,24,8,0.22)',
+        'inset 0 1px 0 rgba(255,255,255,0.65)',
+        'inset 0 0 80px rgba(40,24,8,0.05)',
+        light1 ? '0 0 40px rgba(200,160,40,0.12)' : '',
+      ].filter(Boolean).join(', '),
+      transition: 'background 0.8s, box-shadow 0.8s',
+      overflow: 'hidden',
     }}>
 
+      {/* Circuit overlay */}
+      <CircuitOverlay active={light1} />
+
       {/* Rivets */}
-      {RIVETS.map((pos, i) => <Rivet key={i} style={pos} />)}
+      {RIVETS.map((pos,i) => <Rivet key={i} style={pos}/>)}
 
-      {/* Circuit board pattern for light1 */}
-      {light1 && (
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" style={{ zIndex: 1 }}>
-          <defs>
-            <pattern id="circuitPattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
-              {/* Horizontal traces */}
-              <line x1="0" y1="20" x2="80" y2="20" stroke="#c8a050" strokeWidth="1.5" opacity="0.6" />
-              <line x1="0" y1="60" x2="80" y2="60" stroke="#c8a050" strokeWidth="1.5" opacity="0.6" />
-              {/* Vertical traces */}
-              <line x1="20" y1="0" x2="20" y2="80" stroke="#c8a050" strokeWidth="1.5" opacity="0.6" />
-              <line x1="60" y1="0" x2="60" y2="80" stroke="#c8a050" strokeWidth="1.5" opacity="0.6" />
-              {/* Connection pads */}
-              <circle cx="20" cy="20" r="3" fill="#e8b060" opacity="0.8" />
-              <circle cx="60" cy="20" r="3" fill="#e8b060" opacity="0.8" />
-              <circle cx="20" cy="60" r="3" fill="#e8b060" opacity="0.8" />
-              <circle cx="60" cy="60" r="3" fill="#e8b060" opacity="0.8" />
-              {/* Small detail traces */}
-              <line x1="10" y1="40" x2="30" y2="40" stroke="#b89040" strokeWidth="1" opacity="0.5" />
-              <line x1="50" y1="40" x2="70" y2="40" stroke="#b89040" strokeWidth="1" opacity="0.5" />
-            </pattern>
-            <filter id="circuitGlow">
-              <feGaussianBlur stdDeviation="2" />
-            </filter>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#circuitPattern)" filter="url(#circuitGlow)" />
-        </svg>
-      )}
+      {/* Pipe column (left side) */}
+      <PipeColumn light1={light1}/>
 
-      {/* Subtle texture */}
-      <div className="absolute inset-0 pointer-events-none opacity-30" style={{
-        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 3px)',
-      }} />
-
-      {/* Steam pipe system */}
-      <SteamPipe />
-
-      {/* Large clock at top center */}
-      <div className="absolute" style={{
-        left: '50%',
-        top: '30px',
-        transform: 'translateX(-50%)',
-        width: '240px',
-        height: '240px',
+      {/* ── TITLE ── */}
+      <div style={{
+        textAlign: 'center',
+        fontFamily: "'Orbitron',monospace",
+        fontSize: 10, letterSpacing: 8,
+        color: '#8a7860', textTransform: 'uppercase',
+        marginBottom: 16, paddingBottom: 12,
+        borderBottom: '1px solid #c8b898',
+        position: 'relative', zIndex: 2,
       }}>
-        <div style={{ transform: 'scale(1.6)' }}>
+        Chronos · Room 1
+      </div>
+
+      {/* ── CLOCK SECTION ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginLeft: 24,
+        position: 'relative', zIndex: 2,
+        marginBottom: 4,
+      }}>
+        {/* Clock backlight ring */}
+        <div style={{
+          borderRadius: '50%',
+          padding: 4,
+          background: light2
+            ? 'radial-gradient(circle, rgba(220,180,80,0.18), transparent 70%)'
+            : 'transparent',
+          boxShadow: light2
+            ? '0 0 30px rgba(200,160,40,0.2), 0 0 60px rgba(200,140,20,0.1)'
+            : 'none',
+          border: light2 ? '1px solid rgba(200,160,40,0.25)' : '1px solid transparent',
+          transition: 'all 0.8s',
+        }}>
           <AnalogClock />
         </div>
       </div>
 
-      {/* Left panel area - gauges */}
-      <div className="absolute" style={{ left: '75px', top: '290px' }}>
-        <AnalogGauge value={motors.m1 / 100} radius={26} lit={light4} />
-      </div>
-
-      <div className="absolute" style={{ left: '75px', top: '350px' }}>
-        <AnalogGauge value={motors.m2 / 100} radius={26} lit={light4} />
-      </div>
-
-      {/* Small Edison bulb below clock */}
-      <div className="absolute" style={{
-        left: '50%',
-        top: '260px',
-        transform: 'translateX(-50%)',
+      {/* Clock motor label */}
+      <div style={{
+        textAlign:'center', marginLeft:24,
+        fontFamily:"'Share Tech Mono',monospace",
+        fontSize:8, color:'#9a8870', letterSpacing:2,
+        marginBottom:12, position:'relative', zIndex:2,
       }}>
-        <svg width="30" height="40" viewBox="0 0 30 40">
-          <defs>
-            <radialGradient id="miniEdisonGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor={light3 ? '#fff8d0' : '#1a1610'} />
-              <stop offset="100%" stopColor={light3 ? '#ffb030' : '#0c0a06'} />
-            </radialGradient>
-          </defs>
-          {/* Hanging wire */}
-          <line x1="15" y1="0" x2="15" y2="8" stroke="#3a3028" strokeWidth="1" />
-          {/* Socket */}
-          <rect x="11" y="7" width="8" height="4" rx="1" fill="#2a2418" stroke="#5a4820" strokeWidth="0.5" />
-          {/* Bulb */}
-          <circle cx="15" cy="20" r="8"
-            fill="url(#miniEdisonGlow)"
-            stroke={light3 ? '#ffcc50' : '#2a2010'}
-            strokeWidth="1"
-            style={{
-              transition: 'all 0.6s ease',
-              filter: light3 ? 'drop-shadow(0 0 12px #ffb030) drop-shadow(0 0 6px #ffe080)' : 'none'
-            }}
-          />
-          {/* Filament when lit */}
-          {light3 && (
-            <path d="M 12 20 Q 15 17 18 20" fill="none" stroke="#fff8d0" strokeWidth="0.8" />
-          )}
-          {/* Base */}
-          <rect x="13" y="27" width="4" height="2" rx="0.5" fill="#1a1610" stroke="#3a2e14" strokeWidth="0.5" />
-        </svg>
+        MTR-1 · {Math.round(motors.m1)}%
       </div>
 
-      {/* Control panel with budík lights */}
-      <div className="absolute" style={{
-        left: '70px',
-        top: '420px',
-        width: '70px',
-        height: '50px',
-        background: '#1a1610',
-        border: '1px solid #4a3820',
-        borderRadius: '2px',
-        padding: '6px',
+      {/* ── MIDDLE ROW: Lights + Gears ── */}
+      <div style={{
+        display:'flex', gap:0, marginLeft:50,
+        position:'relative', zIndex:2, alignItems:'flex-start',
       }}>
-        {/* Small LED display area */}
+
+        {/* Left column: Edison + indicators */}
         <div style={{
-          width: '100%',
-          height: '18px',
-          background: '#0a0906',
-          border: '1px solid #2a1e10',
-          marginBottom: '4px',
-          display: 'flex',
-          gap: '2px',
-          padding: '2px',
+          display:'flex', flexDirection:'column', gap:12,
+          alignItems:'center', width:80,
         }}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} style={{
-              flex: 1,
-              height: '100%',
-              background: light5 ? '#ffcc50' : '#1a1208',
-              boxShadow: light5 ? '0 0 6px #ffaa30' : 'none',
-            }} />
-          ))}
+          <div>
+            <SectionLabel>L3 · Bulb</SectionLabel>
+            <EdisonBulb on={light3}/>
+          </div>
+
+          <div style={{ height:1, background:'linear-gradient(90deg,transparent,#c0b090,transparent)', width:'100%', margin:'4px 0'}}/>
+
+          <div>
+            <SectionLabel>Indicators</SectionLabel>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <Led active={light1} label="L1 · Gnd"/>
+              <Led active={light2} label="L2 · Clk"/>
+              <Led active={light3} label="L3 · Bul"/>
+              <Led active={light4} label="L4 · Bud"/>
+              <Led active={light5} label="L5 · Bud"/>
+              <Led active={lightFire} color="red" label="Fire"/>
+            </div>
+          </div>
         </div>
 
-        {/* Budík indicator lights */}
-        <div className="flex gap-2 justify-center mt-2">
-          <BudikLight active={light4} style={{}} />
-          <BudikLight active={light5} style={{}} />
+        {/* Divider */}
+        <div style={{ width:1, background:'linear-gradient(180deg,transparent,#c0b090,transparent)', margin:'0 12px', alignSelf:'stretch'}}/>
+
+        {/* Right column: Gears */}
+        <div style={{ flex:1 }}>
+          <SectionLabel>M2 · Gear Drive</SectionLabel>
+          <GearVisualization />
         </div>
       </div>
 
-      {/* Gears - right side, smaller and positioned higher */}
-      <div className="absolute" style={{
-        right: '20px',
-        top: '250px',
-        width: '150px',
-        height: '400px',
+      {/* ── BOTTOM NAMEPLATE ── */}
+      <div style={{
+        marginTop: 16,
+        marginLeft: 50,
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        position:'relative', zIndex:2,
       }}>
-        <GearVisualization />
-      </div>
+        <div style={{
+          fontFamily:"'Orbitron',monospace",
+          fontSize:14, letterSpacing:6,
+          color: '#8a6830',
+          textShadow: light1 ? '0 0 12px rgba(200,140,30,0.4)' : 'none',
+          background:'linear-gradient(135deg,#d4c090,#c0a060,#d0b070)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          fontWeight:700,
+          transition:'text-shadow 0.8s',
+        }}>CHRONOS</div>
 
-      {/* Fire indicator */}
-      <FireIndicator />
-
-      {/* Bottom gauges */}
-      <div className="absolute flex gap-5" style={{ left: '75px', bottom: '75px' }}>
-        <AnalogGauge value={0.42} radius={20} />
-        <AnalogGauge value={0.65} radius={20} />
-        <AnalogGauge value={0.28} radius={20} />
-      </div>
-
-      {/* CHRONOS nameplate on pipe */}
-      <div className="absolute" style={{
-        bottom: '40px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '140px',
-        height: '32px',
-        background: 'linear-gradient(180deg, #2a2418 0%, #1a1410 50%, #0d0c09 100%)',
-        border: '2px solid #b8943c',
-        borderRadius: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '16px',
-        letterSpacing: '8px',
-        color: '#c0a040',
-        fontWeight: 'bold',
-        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.9), 0 0 16px rgba(192,160,64,0.15)',
-        textShadow: '0 0 8px rgba(192,160,64,0.3)',
-      }}>
-        CHRONOS
-      </div>
-
-      {/* MQTT badge - tiny in corner */}
-      <div className="absolute opacity-30" style={{ bottom: '8px', right: '8px', fontSize: '5px' }}>
         <MqttStatusBadge />
       </div>
+
+      {/* Bottom border detail */}
+      <div style={{
+        position:'absolute', bottom:0, left:0, right:0, height:3,
+        background:'linear-gradient(90deg,transparent,#c8a860,transparent)',
+        opacity:0.4,
+      }}/>
     </div>
   );
 };

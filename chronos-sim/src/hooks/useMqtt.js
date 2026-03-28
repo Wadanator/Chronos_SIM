@@ -2,36 +2,6 @@ import { useEffect } from 'react';
 import mqtt from 'mqtt';
 import useDeviceStore from '../store/deviceStore';
 
-/**
- * Topic structure matching ESP32 firmware (BASE_TOPIC_PREFIX = "room1/")
- *
- * Motors (esp32_mqtt_controller_MOTORS):
- *   room1/motor1   payload: "ON:75:L" or "OFF"  → we read currentSpeed from feedback
- *   room1/motor2   payload: same
- *
- *   For digital twin we subscribe to feedback topics to know actual speed:
- *   room1/motor1/feedback  → not reliable for speed
- *
- *   Better: The ESP publishes device status. We subscribe to a status topic
- *   OR we just mirror the command topics (receive the same commands Pi sends).
- *   Since this is a READ-ONLY twin, subscribe to same topics Pi publishes to.
- *
- * Relays (esp32_mqtt_controller_RELAY):
- *   room1/power/smoke_ON  → ON / OFF
- *   room1/light/fire      → ON / OFF
- *   room1/light/1         → ON / OFF
- *   room1/effect/smoke    → ON / OFF
- *   room1/light/2         → ON / OFF
- *   room1/light/3         → ON / OFF
- *   room1/light/4         → ON / OFF
- *   room1/light/5         → ON / OFF
- *
- * BROKER: WebSocket port 9001 (browsers cannot use raw TCP 1883)
- * Make sure your Mosquitto has:
- *   listener 9001
- *   protocol websockets
- */
-
 const BROKER_WS_URL = 'ws://TechMuzeumRoom1.local:9001';
 
 const parseBool = (v) => {
@@ -39,7 +9,6 @@ const parseBool = (v) => {
   return s === 'ON' || s === '1' || s === 'TRUE';
 };
 
-// Parse motor command: "ON:75:L" or "ON:75:L:5000" → speed number
 const parseMotorSpeed = (payload) => {
   const s = payload.trim().toUpperCase();
   if (s === 'OFF') return 0;
@@ -50,7 +19,7 @@ const parseMotorSpeed = (payload) => {
   if (parts[0] === 'SPEED' && parts.length >= 2) {
     return Math.min(100, Math.max(0, parseInt(parts[1]) || 0));
   }
-  return null; // not a motor topic
+  return null;
 };
 
 export function useMqtt() {
@@ -66,7 +35,6 @@ export function useMqtt() {
 
     client.on('connect', () => {
       store.setMqttStatus('online');
-      // Subscribe to all room1 commands (same messages Pi sends to ESPs)
       client.subscribe('room1/#', { qos: 0 });
     });
 
@@ -76,13 +44,11 @@ export function useMqtt() {
 
     client.on('message', (topic, message) => {
       const val = message.toString().trim();
-      // Strip "room1/" prefix
       if (!topic.startsWith('room1/')) return;
-      const sub = topic.slice('room1/'.length); // e.g. "light/3", "motor1"
+      const sub = topic.slice('room1/'.length);
 
       const s = useDeviceStore.getState();
 
-      // Motors
       if (sub === 'motor1') {
         const spd = parseMotorSpeed(val);
         if (spd !== null) s.updateMotors(spd, s.motors.m2);
@@ -94,7 +60,6 @@ export function useMqtt() {
         return;
       }
 
-      // Relay devices — match DEVICES[] names exactly
       const deviceMap = {
         'power/smoke_ON': 'smokePower',
         'light/fire':     'lightFire',

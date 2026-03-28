@@ -1,7 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700&display=swap');
 @import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background-color: #050403;
+  padding: 0;
+  background: #f0ede8;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
