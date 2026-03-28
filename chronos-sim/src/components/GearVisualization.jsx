@@ -38,21 +38,18 @@ const Gear = ({ cx, cy, ro, ri, hub, teeth, fill, stroke, dir, baseDur, speed })
   );
 };
 
-// Layout mirrors real CHRONOS prop: large central gear, smaller ones meshing around
+// Two gears stacked vertically
 const GEARS = [
-  { cx:118, cy:108, ro:70, ri:57, hub:12, teeth:28, fill:'#2a2416', stroke:'#6a5828', dir:'cw',  baseDur:14 },
-  { cx:208, cy: 50, ro:40, ri:32, hub: 8, teeth:16, fill:'#2a2416', stroke:'#6a5828', dir:'ccw', baseDur: 8 },
-  { cx:205, cy:166, ro:30, ri:23, hub: 6, teeth:12, fill:'#342a18', stroke:'#7a6830', dir:'cw',  baseDur: 6 },
-  { cx: 44, cy:178, ro:34, ri:26, hub: 7, teeth:14, fill:'#342a18', stroke:'#7a6830', dir:'ccw', baseDur: 6 },
-  { cx: 82, cy:196, ro:16, ri:12, hub: 4, teeth: 8, fill:'#3e3020', stroke:'#8a7838', dir:'cw',  baseDur: 3 },
+  { cx:100, cy: 80, ro:55, ri:44, hub:11, teeth:22, fill:'#2a2416', stroke:'#6a5828', dir:'cw',  baseDur:12 },
+  { cx:100, cy:180, ro:48, ri:38, hub:10, teeth:20, fill:'#342a18', stroke:'#7a6830', dir:'ccw', baseDur:10 },
 ];
 
 const GearVisualization = () => {
   const motors = useDeviceStore((s) => s.motors);
-  const speed  = Math.max(motors.m1, motors.m2);
+  const speed  = motors.m2; // Motor 2 riadi kolesá
 
   return (
-    <svg width="100%" viewBox="0 0 240 220" className="block">
+    <svg width="100%" viewBox="0 0 200 260" className="block">
       <style>{`
         @keyframes gcw  { to { transform: rotate( 360deg); } }
         @keyframes gccw { to { transform: rotate(-360deg); } }

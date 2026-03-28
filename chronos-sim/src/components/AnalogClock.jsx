@@ -21,7 +21,7 @@ const AnalogClock = () => {
   const [time, setTime] = useState(new Date());
   const light2   = useDeviceStore((s) => s.outputs.light2);
   const motors   = useDeviceStore((s) => s.motors);
-  const motorSpd = Math.max(motors.m1, motors.m2);
+  const motorSpd = motors.m1; // Motor 1 riadi hodiny
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -50,7 +50,7 @@ const AnalogClock = () => {
       <defs>
         {/* Clock face backlight glow when light2 is ON */}
         <radialGradient id="clockGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor={light2 ? '#c8a050' : '#2a2010'} stopOpacity={light2 ? 0.25 : 0.05} />
+          <stop offset="0%"   stopColor={light2 ? '#e8c060' : '#2a2010'} stopOpacity={light2 ? 0.4 : 0.05} />
           <stop offset="100%" stopColor="transparent" />
         </radialGradient>
         <filter id="softGlow">
@@ -59,12 +59,9 @@ const AnalogClock = () => {
         </filter>
       </defs>
 
-      {/* Panel bg */}
-      <rect x="1" y="1" width="398" height="214" rx="3" fill="#0e0d09" stroke="#2e2610" strokeWidth="1.5" />
-
       {/* Clock backlight */}
       <circle cx={cx} cy={cy} r="104" fill="url(#clockGlow)"
-        style={{ transition: 'all 0.8s ease' }} />
+        style={{ transition: 'all 0.8s ease', filter: light2 ? 'drop-shadow(0 0 20px rgba(232,192,96,0.3))' : 'none' }} />
 
       {/* Outer bezel with rivets */}
       <circle cx={cx} cy={cy} r="103" fill="#0b0a07" stroke="#4a3c18" strokeWidth="3" />
@@ -96,9 +93,9 @@ const AnalogClock = () => {
         return <text key={i}
           x={(cx + 68 * Math.cos(a)).toFixed(1)} y={(cy + 68 * Math.sin(a)).toFixed(1)}
           textAnchor="middle" dominantBaseline="middle"
-          fill={light2 ? '#9a7838' : '#5a3e18'}
+          fill={light2 ? '#c09050' : '#5a3e18'}
           fontSize="13" fontFamily="Georgia, serif" fontWeight="bold"
-          style={{ transition: 'fill 0.8s ease' }}>
+          style={{ transition: 'fill 0.8s ease', filter: light2 ? 'drop-shadow(0 0 2px #c09050)' : 'none' }}>
           {num}
         </text>;
       })}
@@ -144,12 +141,18 @@ const AnalogClock = () => {
 
       {/* Hour hand */}
       <line x1={cx} y1={cy} x2={hp.x.toFixed(1)} y2={hp.y.toFixed(1)}
-        stroke={light2 ? '#e8e0c0' : '#8a8070'} strokeWidth="6" strokeLinecap="round"
-        style={{ transition: 'stroke 0.8s', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+        stroke={light2 ? '#fff8e0' : '#8a8070'} strokeWidth="6" strokeLinecap="round"
+        style={{
+          transition: 'stroke 0.8s',
+          filter: light2 ? 'drop-shadow(0 0 4px #e8d0a0) drop-shadow(0 1px 2px rgba(0,0,0,0.9))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))'
+        }} />
       {/* Minute hand */}
       <line x1={cx} y1={cy} x2={mp.x.toFixed(1)} y2={mp.y.toFixed(1)}
-        stroke={light2 ? '#c8c0a0' : '#706858'} strokeWidth="3.5" strokeLinecap="round"
-        style={{ transition: 'stroke 0.8s', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }} />
+        stroke={light2 ? '#e8d8b0' : '#706858'} strokeWidth="3.5" strokeLinecap="round"
+        style={{
+          transition: 'stroke 0.8s',
+          filter: light2 ? 'drop-shadow(0 0 3px #d8c090) drop-shadow(0 1px 2px rgba(0,0,0,0.9))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))'
+        }} />
       {/* Centre */}
       <circle cx={cx} cy={cy} r="7"   fill="#141210" stroke="#6a5424" strokeWidth="1.5" />
       <circle cx={cx} cy={cy} r="3.5" fill="#c8a050" />
